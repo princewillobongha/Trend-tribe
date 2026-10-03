@@ -80,8 +80,8 @@ function App() {
           category: p.category,
           description: p.description ?? '',
           sizes: p.sizes ?? '',
-          imageUrl: p.image_url
-            ? supabase.storage.from('trend-tribe-products').getPublicUrl(p.image_url).data.publicUrl
+          imageUrl: p.image_path
+            ? supabase.storage.from('trend-tribe-products').getPublicUrl(p.image_path).data.publicUrl
             : '',
           imagePath: p.image_path,
           available: p.available !== false,
