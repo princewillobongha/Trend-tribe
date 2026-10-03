@@ -145,15 +145,30 @@ function App() {
           : [item]
       )
     );
-  const whatsappOrder = () => {
-    const lines = cart.map(
-      item =>
-        `• ${item.name} × ${item.quantity} — ${money(item.price * item.quantity)}`
-    );
-    const message = encodeURIComponent(
-      `Hello Trend Tribe, I would like to order:\n\n${lines.join('\n')}\n\nEstimated total: ${money(cartTotal)}\n\nPlease confirm availability and delivery details.`
-    );
-    window.open(`https://wa.me/2349017751552?text=${message}`, '_blank');
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [checkoutDone, setCheckoutDone] = useState<{orderNumber:string;method:string}|null>(null);
+  const [checkout, setCheckout] = useState({name:'',email:'',phone:'',address:'',city:'Calabar',notes:'',paymentMethod:'bank_transfer'});
+  const beginCheckout = () => { if(cart.length) { setCheckoutDone(null); setShowCart(false); setShowCheckout(true); } };
+  const submitCheckout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if(!checkout.name.trim() || !checkout.phone.trim() || !checkout.address.trim() || !checkout.city.trim()) { setNotice('Please complete your name, phone, address and city.'); return; }
+    setCheckoutBusy(true); setNotice('');
+    const orderNumber = 'TT-' + Date.now().toString().slice(-8);
+    try {
+      await api.createOrder({
+        order_number: orderNumber, customer_name: checkout.name.trim(), email: checkout.email.trim() || null,
+        phone: checkout.phone.trim(), address: checkout.address.trim(), city: checkout.city.trim(), notes: checkout.notes.trim() || null,
+        items: cart.map(item=>({id:item.id,name:item.name,price:item.price,quantity:item.quantity})),
+        subtotal: cartTotal, delivery_fee: 0, total: cartTotal, payment_method: checkout.paymentMethod,
+        payment_status:'pending', order_status:'pending'
+      });
+      const lines = cart.map(item => `• ${item.name} × ${item.quantity} — ${money(item.price * item.quantity)}`);
+      const message = encodeURIComponent(`Hello Trend Tribe, I just placed order ${orderNumber}.\\n\\n${lines.join('\\n')}\\n\\nTotal: ${money(cartTotal)}\\nPayment: ${checkout.paymentMethod === 'bank_transfer' ? 'Bank transfer' : 'WhatsApp confirmation'}\\n\\nCustomer: ${checkout.name}\\nPhone: ${checkout.phone}\\nAddress: ${checkout.address}, ${checkout.city}`);
+      setCart([]); setCheckoutDone({orderNumber,method:checkout.paymentMethod}); setCheckout({...checkout,name:'',email:'',phone:'',address:'',notes:''});
+      if(checkout.paymentMethod==='whatsapp') window.open(`https://wa.me/2349017751552?text=${message}`,'_blank');
+    } catch { setNotice('We could not submit your order. Please try again.'); }
+    finally { setCheckoutBusy(false); }
   };
   const signInAdmin = async () => { setShowLogin(true); };
   const submitAdminLogin = async () => {
@@ -557,17 +572,48 @@ function App() {
                     <span>ESTIMATED TOTAL</span>
                     <strong>{money(cartTotal)}</strong>
                   </div>
-                  <button className="primary-btn full" onClick={whatsappOrder}>
+                  <button className="primary-btn full" onClick={beginCheckout}>
+                    <ArrowRight size={17} /> PROCEED TO CHECKOUT
+                  </button>
+                  <button className="secondary-btn full" onClick={() => setCheckout({...checkout,paymentMethod:'whatsapp'})}>
                     <MessageCircle size={17} /> ORDER VIA WHATSAPP
                   </button>
-                  <p>
-                    You'll confirm availability, sizes and delivery with Trend
-                    Tribe on WhatsApp.
-                  </p>
+                  <p>Securely submit your order first. Choose bank transfer or WhatsApp confirmation at checkout.</p>
                 </div>
               </>
             )}
           </aside>
+        </div>
+      )}
+      {showCheckout && (
+        <div className="overlay" onMouseDown={() => !checkoutBusy && setShowCheckout(false)}>
+          <div className="checkout-card" onMouseDown={e => e.stopPropagation()}>
+            <button className="login-close" onClick={() => !checkoutBusy && setShowCheckout(false)}><X /></button>
+            {!checkoutDone ? <>
+              <p className="eyebrow">TREND TRIBE CHECKOUT</p><h2>Complete your <em>order.</em></h2>
+              <div className="checkout-summary"><span>{cartCount} pieces</span><strong>{money(cartTotal)}</strong></div>
+              <form onSubmit={submitCheckout}>
+                <div className="form-grid">
+                  <label>FULL NAME<input required value={checkout.name} onChange={e=>setCheckout({...checkout,name:e.target.value})} /></label>
+                  <label>PHONE NUMBER<input required type="tel" value={checkout.phone} onChange={e=>setCheckout({...checkout,phone:e.target.value})} /></label>
+                </div>
+                <label>EMAIL (OPTIONAL)<input type="email" value={checkout.email} onChange={e=>setCheckout({...checkout,email:e.target.value})} /></label>
+                <label>DELIVERY ADDRESS<input required value={checkout.address} onChange={e=>setCheckout({...checkout,address:e.target.value})} /></label>
+                <label>CITY<input required value={checkout.city} onChange={e=>setCheckout({...checkout,city:e.target.value})} /></label>
+                <label>ORDER NOTES (OPTIONAL)<textarea value={checkout.notes} onChange={e=>setCheckout({...checkout,notes:e.target.value})} placeholder="Size preferences, delivery instructions…" /></label>
+                <p className="eyebrow payment-title">PAYMENT METHOD</p>
+                <div className="payment-options">
+                  <button type="button" className={checkout.paymentMethod==='bank_transfer'?'payment-option active':'payment-option'} onClick={()=>setCheckout({...checkout,paymentMethod:'bank_transfer'})}><strong>Bank Transfer</strong><span>Submit order and receive payment instructions.</span></button>
+                  <button type="button" className={checkout.paymentMethod==='whatsapp'?'payment-option active':'payment-option'} onClick={()=>setCheckout({...checkout,paymentMethod:'whatsapp'})}><strong>WhatsApp</strong><span>Submit order and continue with Trend Tribe.</span></button>
+                </div>
+                <button className="primary-btn full" disabled={checkoutBusy}>{checkoutBusy?'SUBMITTING…':'PLACE ORDER'} <Check size={17}/></button>
+              </form>
+            </> : <>
+              <p className="eyebrow">ORDER RECEIVED</p><h2>Thank you for shopping <em>Trend Tribe.</em></h2>
+              <p className="checkout-success">Your order <strong>{checkoutDone.orderNumber}</strong> has been submitted. {checkoutDone.method==='bank_transfer' ? 'Trend Tribe will contact you with bank transfer payment instructions and delivery confirmation.' : 'Your WhatsApp conversation has been opened so the team can confirm payment and delivery.'}</p>
+              <button className="primary-btn full" onClick={()=>setShowCheckout(false)}>CONTINUE SHOPPING <ArrowRight size={17}/></button>
+            </>}
+          </div>
         </div>
       )}
       {showAdmin && adminUser && (
