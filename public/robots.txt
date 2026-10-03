@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://trend-tribe-uu8gc7.v2.appdeploy.ai/sitemap.xml
+Sitemap: https://trend-tribe.vercel.app/sitemap.xml
