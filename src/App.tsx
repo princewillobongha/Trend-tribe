@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { supabase } from './lib/supabase';
+import { api, auth } from '@appdeploy/client';
 import {
   ArrowRight,
   Check,
@@ -67,27 +67,8 @@ function App() {
 
   const loadProducts = async () => {
     try {
-      const { data, error } = await supabase
-        .from('trend_tribe_products')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setProducts(
-        (data ?? []).map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          price: Number(p.price),
-          category: p.category,
-          description: p.description ?? '',
-          sizes: p.sizes ?? '',
-          imageUrl: p.image_path
-            ? supabase.storage.from('trend-tribe-products').getPublicUrl(p.image_path).data.publicUrl
-            : '',
-          imagePath: p.image_path,
-          available: p.available !== false,
-          createdAt: p.created_at,
-        }))
-      );
+      const response = await api.get('/api/products');
+      setProducts(response.data.products ?? []);
     } catch {
       setNotice('We could not load the collection right now. Please refresh.');
     } finally {
@@ -104,24 +85,12 @@ function App() {
         localStorage.removeItem('trend-tribe-cart');
       }
     }
-    supabase.auth
+    auth
       .getUser()
-      .then(({ data }) => {
-        const user = data.user;
-        if (user?.email?.toLowerCase() === ADMIN_EMAIL) {
-          setAdminUser({ email: user.email ?? undefined, name: user.user_metadata?.full_name ?? undefined });
-        }
+      .then(user => {
+        if (user?.email?.toLowerCase() === ADMIN_EMAIL) setAdminUser(user);
       })
       .catch(() => undefined);
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      const user = session?.user;
-      if (user?.email?.toLowerCase() === ADMIN_EMAIL) {
-        setAdminUser({ email: user.email ?? undefined, name: user.user_metadata?.full_name ?? undefined });
-      } else if (!user) {
-        setAdminUser(null);
-      }
-    });
-    return () => listener.subscription.unsubscribe();
   }, []);
   useEffect(() => {
     localStorage.setItem('trend-tribe-cart', JSON.stringify(cart));
@@ -189,18 +158,26 @@ function App() {
   };
   const signInAdmin = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: ADMIN_EMAIL,
-        options: { emailRedirectTo: window.location.origin },
+      const result = await auth.signIn({
+        scope: 'openid email profile offline_access',
       });
-      if (error) throw error;
-      setNotice('A secure admin sign-in link has been sent to the Trend Tribe admin email.');
-    } catch {
-      setNotice('Admin sign-in could not be started. Please try again.');
+      if (result.user.email?.toLowerCase() !== ADMIN_EMAIL) {
+        await auth.signOut();
+        setNotice('This account is not authorized as the Trend Tribe admin.');
+        return;
+      }
+      setAdminUser(result.user);
+      setShowAdmin(true);
+    } catch (error: any) {
+      setNotice(
+        error?.code === 'popup_blocked'
+          ? 'Please allow pop-ups to sign in.'
+          : 'Admin sign-in was cancelled or failed.'
+      );
     }
   };
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await auth.signOut();
     setAdminUser(null);
     setShowAdmin(false);
   };
@@ -653,28 +630,7 @@ function AdminDashboard({
     setBusy(true);
     setMessage('');
     try {
-      const safeName = form.name.trim().replace(/[^a-zA-Z0-9-_]+/g, '-').toLowerCase().slice(0, 80);
-      const blob = Uint8Array.from(atob(form.imageData), c => c.charCodeAt(0));
-      const ext = form.imageType.split('/')[1] || 'jpeg';
-      const path = `${(await supabase.auth.getUser()).data.user?.id ?? 'admin'}/${Date.now()}-${safeName}.${ext}`;
-      const uploadResult = await supabase.storage.from('trend-tribe-products').upload(path, blob, {
-        contentType: form.imageType,
-        upsert: false,
-      });
-      if (uploadResult.error) throw uploadResult.error;
-      const insertResult = await supabase.from('trend_tribe_products').insert({
-        name: form.name.trim(),
-        price: Number(form.price),
-        category: form.category,
-        description: form.description.trim() || 'A curated Trend Tribe piece.',
-        sizes: form.sizes.trim(),
-        image_path: path,
-        available: form.available,
-      });
-      if (insertResult.error) {
-        await supabase.storage.from('trend-tribe-products').remove([path]);
-        throw insertResult.error;
-      }
+      await api.post('/api/products', form);
       setForm({
         name: '',
         price: '',
@@ -701,14 +657,7 @@ function AdminDashboard({
     )
       return;
     try {
-      const result = await supabase
-        .from('trend_tribe_products')
-        .delete()
-        .eq('id', product.id);
-      if (result.error) throw result.error;
-      if (product.imagePath) {
-        await supabase.storage.from('trend-tribe-products').remove([product.imagePath]);
-      }
+      await api.delete(`/api/products/${product.id}`);
       await onRefresh();
     } catch {
       setMessage('Could not delete the product.');
