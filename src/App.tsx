@@ -27,6 +27,7 @@ type Product = {
   sizes: string;
   imageUrl: string;
   imagePath: string;
+  imagePaths: string[];
   available: boolean;
   createdAt: string;
 };
@@ -65,6 +66,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
   const [showLogin, setShowLogin] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [loginEmail, setLoginEmail] = useState('trendtribeluxurywears@gmail.com');
   const [loginBusy, setLoginBusy] = useState(false);
 
@@ -94,6 +96,44 @@ function App() {
   useEffect(() => {
     localStorage.setItem('trend-tribe-cart', JSON.stringify(cart));
   }, [cart]);
+  useEffect(() => {
+    const syncProductFromUrl = () => {
+      const id = new URLSearchParams(window.location.search).get('product');
+      setSelectedProduct(id ? products.find(p => p.id === id) ?? null : null);
+    };
+    syncProductFromUrl();
+    window.addEventListener('popstate', syncProductFromUrl);
+    return () => window.removeEventListener('popstate', syncProductFromUrl);
+  }, [products]);
+
+  useEffect(() => {
+    const title = selectedProduct ? `${selectedProduct.name} | Trend Tribe Luxury Wears` : 'Trend Tribe | Luxury Wears & Fancy Clothing in Calabar';
+    document.title = title;
+    const description = selectedProduct ? `${selectedProduct.name} — ${selectedProduct.description || 'Premium and fancy clothing from Trend Tribe.'} Shop in Nigeria with Trend Tribe.` : 'Trend Tribe is a Calabar-based luxury fashion store offering premium and fancy clothing for men, women and unisex styles across Nigeria. Browse the collection and order easily.';
+    let meta = document.querySelector('meta[name="description"]');
+    if (!meta) { meta = document.createElement('meta'); meta.setAttribute('name','description'); document.head.appendChild(meta); }
+    meta.setAttribute('content', description);
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) { canonical = document.createElement('link'); canonical.setAttribute('rel','canonical'); document.head.appendChild(canonical); }
+    canonical.setAttribute('href', selectedProduct ? `${window.location.origin}/?product=${encodeURIComponent(selectedProduct.id)}` : `${window.location.origin}/`);
+    document.getElementById('trend-tribe-product-schema')?.remove();
+    if (selectedProduct) {
+      const schema = document.createElement('script');
+      schema.id = 'trend-tribe-product-schema';
+      schema.type = 'application/ld+json';
+      schema.textContent = JSON.stringify({
+        '@context':'https://schema.org',
+        '@type':'Product',
+        name:selectedProduct.name,
+        description:selectedProduct.description || selectedProduct.name,
+        image:selectedProduct.imagePaths?.length ? selectedProduct.imagePaths.map(path => api.imageUrl(path)) : (selectedProduct.imageUrl ? [selectedProduct.imageUrl] : []),
+        category:selectedProduct.category,
+        brand:{'@type':'Brand',name:'Trend Tribe'},
+        offers:{'@type':'Offer',priceCurrency:'NGN',price:String(selectedProduct.price),availability:selectedProduct.available ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',url:`${window.location.origin}/?product=${encodeURIComponent(selectedProduct.id)}`}
+      });
+      document.head.appendChild(schema);
+    }
+  }, [selectedProduct]);
 
   const filtered = useMemo(
     () =>
@@ -120,6 +160,20 @@ function App() {
     (sum, item) => sum + item.price * item.quantity,
     0
   );
+
+  const openProduct = (product: Product) => {
+    setSelectedProduct(product);
+    const url = new URL(window.location.href);
+    url.searchParams.set('product', product.id);
+    window.history.pushState({}, '', url.toString());
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const closeProduct = () => {
+    setSelectedProduct(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('product');
+    window.history.pushState({}, '', url.pathname + url.search);
+  };
 
   const addToCart = (product: Product) => {
     setCart(current => {
@@ -374,7 +428,7 @@ function App() {
           ) : (
             <div className="product-grid">
               {filtered.map(product => (
-                <article className="product-card" key={product.id}>
+                <article className="product-card" key={product.id} onClick={() => openProduct(product)}>
                   <div className="product-image">
                     {product.imageUrl ? (
                       <img src={product.imageUrl} alt={product.name} />
@@ -389,7 +443,7 @@ function App() {
                     <button
                       className="quick-add"
                       disabled={!product.available}
-                      onClick={() => addToCart(product)}
+                      onClick={e => { e.stopPropagation(); addToCart(product); }}
                     >
                       {product.available ? 'ADD TO BAG' : 'UNAVAILABLE'}
                     </button>
@@ -409,7 +463,7 @@ function App() {
                   )}
                   <button
                     className="whatsapp-link"
-                    onClick={() => {
+                    onClick={e => { e.stopPropagation();
                       const text = encodeURIComponent(
                         `Hello Trend Tribe, I'm interested in ${product.name} (${money(product.price)}). Is it available?`
                       );
@@ -503,6 +557,32 @@ function App() {
         </div>
       </footer>
       {notice && <div className="toast">{notice}</div>}
+      {selectedProduct && (
+        <div className="overlay" onMouseDown={closeProduct}>
+          <div className="product-detail-card" onMouseDown={e => e.stopPropagation()}>
+            <button className="login-close" onClick={closeProduct}><X /></button>
+            <div className="product-detail-gallery">
+              {(selectedProduct.imagePaths?.length ? selectedProduct.imagePaths : (selectedProduct.imagePath ? [selectedProduct.imagePath] : [])).map((path,index) => (
+                <img key={path + index} src={api.imageUrl(path)} alt={index === 0 ? selectedProduct.name : `${selectedProduct.name} view ${index + 1}`} />
+              ))}
+            </div>
+            <div className="product-detail-copy">
+              <p className="eyebrow">{selectedProduct.category}</p>
+              <h2>{selectedProduct.name}</h2>
+              <strong className="detail-price">{money(selectedProduct.price)}</strong>
+              <p>{selectedProduct.description || 'A curated Trend Tribe piece.'}</p>
+              {selectedProduct.sizes && <p className="sizes">SIZES <span>{selectedProduct.sizes}</span></p>}
+              <button className="primary-btn full" disabled={!selectedProduct.available} onClick={() => addToCart(selectedProduct)}>
+                {selectedProduct.available ? 'ADD TO BAG' : 'SOLD OUT'} <ShoppingBag size={17} />
+              </button>
+              <button className="secondary-btn full" onClick={() => {
+                const text = encodeURIComponent(`Hello Trend Tribe, I'm interested in ${selectedProduct.name} (${money(selectedProduct.price)}). Is it available?`);
+                window.open(`https://wa.me/2349017751552?text=${text}`, '_blank');
+              }}><MessageCircle size={17} /> ASK ON WHATSAPP</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showLogin && !adminUser && (
         <div className="overlay" onMouseDown={() => setShowLogin(false)}>
           <div className="login-card" onMouseDown={e => e.stopPropagation()}>
@@ -650,24 +730,30 @@ function AdminDashboard({
     sizes: 'S, M, L, XL',
     imageData: '',
     imageType: 'image/jpeg',
+    imageGallery: [] as { data: string; type: string; name: string }[],
     available: true,
   });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const upload = (file: File) => {
-    if (!file.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = () =>
-      setForm(f => ({
-        ...f,
-        imageData: String(reader.result).split(',')[1] ?? '',
-        imageType: file.type,
-      }));
-    reader.readAsDataURL(file);
+  const upload = (files: FileList | null) => {
+    if (!files?.length) return;
+    Array.from(files).filter(file => file.type.startsWith('image/')).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const data = String(reader.result).split(',')[1] ?? '';
+        setForm(f => ({
+          ...f,
+          imageData: f.imageData || data,
+          imageType: f.imageType || file.type,
+          imageGallery: [...f.imageGallery, { data, type: file.type, name: file.name }]
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
   };
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.price || !form.imageData) {
+    if (!form.name.trim() || !form.price || !form.imageGallery.length) {
       setMessage('Product name, price and photo are required.');
       return;
     }
@@ -683,6 +769,7 @@ function AdminDashboard({
         sizes: 'S, M, L, XL',
         imageData: '',
         imageType: 'image/jpeg',
+        imageGallery: [],
         available: true,
       });
       await onRefresh();
@@ -737,19 +824,22 @@ function AdminDashboard({
               </div>
             </div>
             <label>
-              PRODUCT PHOTO
+              PRODUCT PHOTOS
               <input
                 type="file"
                 accept="image/*"
-                onChange={e => e.target.files?.[0] && upload(e.target.files[0])}
+                multiple
+                onChange={e => upload(e.target.files)}
               />
+              <small>Select multiple photos of the same wear — front, back, detail, fit, etc.</small>
             </label>
-            {form.imageData && (
-              <div className="preview">
-                <img
-                  src={`data:${form.imageType};base64,${form.imageData}`}
-                  alt="Preview"
-                />
+            {form.imageGallery.length > 0 && (
+              <div className="preview-gallery">
+                {form.imageGallery.map((photo,index) => (
+                  <div className="preview" key={photo.name + index}>
+                    <img src={`data:${photo.type};base64,${photo.data}`} alt={`Preview ${index + 1}`} />
+                  </div>
+                ))}
               </div>
             )}
             <label>
