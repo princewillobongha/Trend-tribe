@@ -1,0 +1,9 @@
+{
+  "name": "Trend Tribe — Luxury Wears",
+  "short_name": "Trend Tribe",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "description": "Premium and fancy clothing from Trend Tribe in Calabar, Cross River State."
+}
