@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api, auth, supabase } from './lib/appdeploy-client';
+import { api, auth } from './lib/appdeploy-client';
 import {
   ArrowRight,
   Check,
@@ -89,8 +89,7 @@ function App() {
       }
     }
     auth.getUser().then(user => { if (user?.email?.trim().toLowerCase() === ADMIN_EMAIL) setAdminUser(user); }).catch(() => undefined);
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { const email = session?.user?.email?.trim().toLowerCase(); setAdminUser(email === ADMIN_EMAIL ? { email: session?.user?.email } : null); });
-    return () => listener.subscription.unsubscribe();
+
   }, []);
   useEffect(() => {
     localStorage.setItem('trend-tribe-cart', JSON.stringify(cart));
