@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api, auth } from './lib/appdeploy-client';
+import { api, auth, supabase } from './lib/appdeploy-client';
 import {
   ArrowRight,
   Check,
@@ -64,6 +64,9 @@ function App() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+  const [showLogin, setShowLogin] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('trendtribeluxurywears@gmail.com');
+  const [loginBusy, setLoginBusy] = useState(false);
 
   const loadProducts = async () => {
     try {
@@ -85,12 +88,9 @@ function App() {
         localStorage.removeItem('trend-tribe-cart');
       }
     }
-    auth
-      .getUser()
-      .then(user => {
-        if (user?.email?.toLowerCase() === ADMIN_EMAIL) setAdminUser(user);
-      })
-      .catch(() => undefined);
+    auth.getUser().then(user => { if (user?.email?.trim().toLowerCase() === ADMIN_EMAIL) setAdminUser(user); }).catch(() => undefined);
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => { const email = session?.user?.email?.trim().toLowerCase(); setAdminUser(email === ADMIN_EMAIL ? { email: session?.user?.email } : null); });
+    return () => listener.subscription.unsubscribe();
   }, []);
   useEffect(() => {
     localStorage.setItem('trend-tribe-cart', JSON.stringify(cart));
@@ -156,25 +156,12 @@ function App() {
     );
     window.open(`https://wa.me/2349017751552?text=${message}`, '_blank');
   };
-  const signInAdmin = async () => {
-    try {
-      const result = await auth.signIn({
-        scope: 'openid email profile offline_access',
-      });
-      if (result.user.email?.toLowerCase() !== ADMIN_EMAIL) {
-        await auth.signOut();
-        setNotice('This account is not authorized as the Trend Tribe admin.');
-        return;
-      }
-      setAdminUser(result.user);
-      setShowAdmin(true);
-    } catch (error: any) {
-      setNotice(
-        error?.code === 'popup_blocked'
-          ? 'Please allow pop-ups to sign in.'
-          : 'Admin sign-in was cancelled or failed.'
-      );
-    }
+  const signInAdmin = async () => { setShowLogin(true); };
+  const submitAdminLogin = async () => {
+    setLoginBusy(true); setNotice('');
+    try { await auth.signIn(loginEmail); setShowLogin(false); setNotice('Check the admin email inbox and tap the secure sign-in link.'); setTimeout(() => setNotice(''), 7000); }
+    catch (error: any) { setNotice(error?.message === 'not_authorized' ? 'This email is not authorized as the Trend Tribe admin.' : 'Could not send the sign-in link. Please try again.'); }
+    finally { setLoginBusy(false); }
   };
   const signOut = async () => {
     await auth.signOut();
@@ -502,6 +489,18 @@ function App() {
         </div>
       </footer>
       {notice && <div className="toast">{notice}</div>}
+      {showLogin && !adminUser && (
+        <div className="overlay" onMouseDown={() => setShowLogin(false)}>
+          <div className="login-card" onMouseDown={e => e.stopPropagation()}>
+            <button className="login-close" onClick={() => setShowLogin(false)}><X /></button>
+            <p className="eyebrow">TREND TRIBE ADMIN</p>
+            <h2>Welcome back.</h2>
+            <p>Enter the authorized admin email. We'll send a secure sign-in link to your inbox.</p>
+            <label>ADMIN EMAIL<input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} autoComplete="email" /></label>
+            <button className="primary-btn full" disabled={loginBusy} onClick={submitAdminLogin}>{loginBusy ? 'SENDING…' : 'SEND SECURE SIGN-IN LINK'} <ArrowRight size={17} /></button>
+          </div>
+        </div>
+      )}
       {showCart && (
         <div className="overlay" onMouseDown={() => setShowCart(false)}>
           <aside className="drawer" onMouseDown={e => e.stopPropagation()}>
