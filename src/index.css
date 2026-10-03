@@ -1021,3 +1021,5 @@ footer h4 {
     max-height: none;
   }
 }
+
+.login-card{position:relative;width:min(440px,calc(100% - 32px));margin:12vh auto 0;background:#f5f2ec;padding:42px;box-shadow:0 30px 90px #0008}.login-card h2{font:400 42px Georgia,serif;margin:0 0 14px}.login-card>p:not(.eyebrow){font-size:11px;line-height:1.7;color:#666;margin:0 0 26px}.login-card label{display:block;font-size:8px;letter-spacing:.16em}.login-card input{display:block;width:100%;border:1px solid #ccc;background:#fff;padding:13px;margin-top:8px;outline:none;font-size:12px}.login-close{position:absolute;right:18px;top:18px}.login-close svg{width:18px}@media(max-width:600px){.login-card{padding:30px 22px}.login-card h2{font-size:34px}}
