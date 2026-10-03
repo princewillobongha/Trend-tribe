@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://trend-tribe-uu8gc7.v2.appdeploy.ai/sitemap.xml
