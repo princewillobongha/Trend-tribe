@@ -33,6 +33,6 @@ export const api = {
 
 export const auth = {
  async getUser():Promise<User|null>{ const user=await supabase.auth.getUser(); return user ? {email:user.email,name:user.user_metadata?.full_name || user.email || ''} : null; },
- async signIn(email:string){ const normalized=email.trim().toLowerCase(); if(normalized!==ADMIN_EMAIL) throw new Error('not_authorized'); const response=await fetch(SUPABASE_URL+'/auth/v1/otp',{method:'POST',headers:headers(),body:JSON.stringify({email:normalized,create_user:true,gotrue_meta_security:{}})}); if(!response.ok) throw new Error(await response.text()); return {user:null,otpSent:true}; },
+ async signIn(email:string){ const normalized=email.trim().toLowerCase(); if(normalized!==ADMIN_EMAIL) throw new Error('not_authorized'); const redirectTo = window.location.origin + '/'; const response=await fetch(SUPABASE_URL+'/auth/v1/otp?redirect_to='+encodeURIComponent(redirectTo),{method:'POST',headers:headers(),body:JSON.stringify({email:normalized,create_user:true})}); if(!response.ok) throw new Error(await response.text()); return {user:null,otpSent:true}; },
  async signOut(){ const s=session(); if(s?.access_token){ await fetch(SUPABASE_URL+'/auth/v1/logout',{method:'POST',headers:headers(true)}).catch(()=>undefined); } saveSession(null); }
 };
