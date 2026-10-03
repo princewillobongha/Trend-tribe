@@ -1,31 +1,38 @@
-import { createClient } from '@supabase/supabase-js';
-
 const SUPABASE_URL = 'https://gokprabzwmxdvxevgxbj.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_G0Jeq1-68TShWEXQ5J4jkQ_rJrHajtr';
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+const SUPABASE_KEY = 'sb_publishable_G0Jeq1-68TShWEXQ5J4jkQ_rJrHajtr';
+const BUCKET = 'trend-tribe-products';
+const ADMIN_EMAIL = 'trendtribeluxurywears@gmail.com';
+const SESSION_KEY = 'trend-tribe-supabase-session';
 
+type Session = { access_token: string; refresh_token?: string; expires_at?: number };
 type User = { email?: string; name?: string };
 type ProductRow = { id:string; name:string; price:number; category:string; description:string; sizes:string; image_path:string; available:boolean; created_at:string };
-const mapProduct = (row: ProductRow) => ({ id:row.id, name:row.name, price:Number(row.price), category:row.category, description:row.description, sizes:row.sizes, imagePath:row.image_path, available:row.available, createdAt:row.created_at, imageUrl:row.image_path ? supabase.storage.from('trend-tribe-products').getPublicUrl(row.image_path).data.publicUrl : '' });
-const getCurrentUser = async () => { const { data, error } = await supabase.auth.getUser(); if (error) throw error; return data.user; };
-export const api = {
-  async get(path:string) { if(path !== '/api/products') throw new Error('Unknown API route'); const {data,error}=await supabase.from('trend_tribe_products').select('*').order('created_at',{ascending:false}); if(error) throw error; return {data:{products:(data as ProductRow[]).map(mapProduct)}}; },
-  async post(path:string, body:any) {
-    if(path !== '/api/products') throw new Error('Unknown API route');
-    const user=await getCurrentUser(); if(!user?.email || user.email.trim().toLowerCase() !== 'trendtribeluxurywears@gmail.com') throw new Error('Admin authorization required');
-    const bytes=Uint8Array.from(atob(body.imageData), c=>c.charCodeAt(0));
-    const extension=(body.imageType?.split('/')[1] || 'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase();
-    const safeName=String(body.name).trim().replace(/[^a-zA-Z0-9-_]+/g,'-').toLowerCase().slice(0,70);
-    const pathName='products/'+Date.now()+'-'+safeName+'.'+(extension || 'jpg');
-    const upload=await supabase.storage.from('trend-tribe-products').upload(pathName,bytes,{contentType:body.imageType || 'image/jpeg',upsert:false});
-    if(upload.error) throw upload.error;
-    const {data,error}=await supabase.from('trend_tribe_products').insert({name:String(body.name).trim(),price:Number(body.price),category:body.category || 'Unisex',description:String(body.description || '').trim() || 'A curated Trend Tribe piece.',sizes:String(body.sizes || '').trim(),image_path:pathName,available:body.available !== false}).select('id').single();
-    if(error){ await supabase.storage.from('trend-tribe-products').remove([pathName]); throw error; } return {data:{id:data.id}};
-  },
-  async delete(path:string) { const id=path.split('/').pop(); if(!id) throw new Error('Missing product id'); const user=await getCurrentUser(); if(!user?.email || user.email.trim().toLowerCase() !== 'trendtribeluxurywears@gmail.com') throw new Error('Admin authorization required'); const {data:product,error:lookupError}=await supabase.from('trend_tribe_products').select('image_path').eq('id',id).single(); if(lookupError) throw lookupError; const {error}=await supabase.from('trend_tribe_products').delete().eq('id',id); if(error) throw error; if(product?.image_path){const {error:imageError}=await supabase.storage.from('trend-tribe-products').remove([product.image_path]); if(imageError) throw imageError;} return {data:{deleted:true}}; },
+
+const session = (): Session | null => { try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch { return null; } };
+const saveSession = (value: Session | null) => value ? localStorage.setItem(SESSION_KEY, JSON.stringify(value)) : localStorage.removeItem(SESSION_KEY);
+const hydrateSessionFromHash = () => {
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const access_token = hash.get('access_token');
+  const refresh_token = hash.get('refresh_token');
+  if (access_token) { saveSession({ access_token, refresh_token: refresh_token || undefined, expires_at: Number(hash.get('expires_at') || 0) }); window.history.replaceState({}, document.title, window.location.pathname + window.location.search); }
 };
+hydrateSessionFromHash();
+
+const headers = (authenticated = false) => ({ 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json', ...(authenticated && session()?.access_token ? { Authorization: 'Bearer ' + session()!.access_token } : {}) });
+const authFetch = async (url:string, options:RequestInit={}) => { const response=await fetch(url,{...options,headers:{...headers(true),...(options.headers || {})}}); if(!response.ok){const body=await response.text(); throw new Error(body || ('Request failed: '+response.status));} return response; };
+const publicUrl = (path:string) => SUPABASE_URL + '/storage/v1/object/public/' + BUCKET + '/' + path.split('/').map(encodeURIComponent).join('/');
+const mapProduct=(row:ProductRow)=>({id:row.id,name:row.name,price:Number(row.price),category:row.category,description:row.description,sizes:row.sizes,imagePath:row.image_path,available:row.available,createdAt:row.created_at,imageUrl:row.image_path ? publicUrl(row.image_path) : ''});
+
+export const supabase = { auth: { async getUser(){ const s=session(); if(!s?.access_token) return null; const response=await authFetch(SUPABASE_URL+'/auth/v1/user'); return response.json(); } } };
+
+export const api = {
+ async get(path:string){ if(path!=='/api/products') throw new Error('Unknown API route'); const response=await fetch(SUPABASE_URL+'/rest/v1/trend_tribe_products?select=*&order=created_at.desc',{headers:headers()}); if(!response.ok) throw new Error(await response.text()); const data=await response.json() as ProductRow[]; return {data:{products:data.map(mapProduct)}}; },
+ async post(path:string,body:any){ if(path!=='/api/products') throw new Error('Unknown API route'); const user=await supabase.auth.getUser(); if(!user?.email || user.email.trim().toLowerCase()!==ADMIN_EMAIL) throw new Error('Admin authorization required'); const bytes=Uint8Array.from(atob(body.imageData),(c)=>c.charCodeAt(0)); const ext=(body.imageType?.split('/')[1]||'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase()||'jpg'; const safe=String(body.name).trim().replace(/[^a-zA-Z0-9-_]+/g,'-').toLowerCase().slice(0,70); const pathName='products/'+Date.now()+'-'+safe+'.'+ext; const upload=await authFetch(SUPABASE_URL+'/storage/v1/object/'+BUCKET+'/'+pathName,{method:'POST',headers:{'Content-Type':body.imageType||'image/jpeg','x-upsert':'false'},body:bytes}); if(!upload.ok) throw new Error(await upload.text()); const response=await authFetch(SUPABASE_URL+'/rest/v1/trend_tribe_products',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({name:String(body.name).trim(),price:Number(body.price),category:body.category||'Unisex',description:String(body.description||'').trim()||'A curated Trend Tribe piece.',sizes:String(body.sizes||'').trim(),image_path:pathName,available:body.available!==false})}); const rows=await response.json(); return {data:{id:rows[0]?.id}}; },
+ async delete(path:string){ const id=path.split('/').pop(); if(!id) throw new Error('Missing product id'); const user=await supabase.auth.getUser(); if(!user?.email || user.email.trim().toLowerCase()!==ADMIN_EMAIL) throw new Error('Admin authorization required'); const lookup=await authFetch(SUPABASE_URL+'/rest/v1/trend_tribe_products?id=eq.'+encodeURIComponent(id)+'&select=image_path'); const products=await lookup.json(); const response=await authFetch(SUPABASE_URL+'/rest/v1/trend_tribe_products?id=eq.'+encodeURIComponent(id),{method:'DELETE'}); if(!response.ok) throw new Error(await response.text()); const imagePath=products[0]?.image_path; if(imagePath){ await authFetch(SUPABASE_URL+'/storage/v1/object/'+BUCKET+'/'+imagePath,{method:'DELETE'}); } return {data:{deleted:true}}; }
+};
+
 export const auth = {
-  async getUser():Promise<User|null>{ const {data}=await supabase.auth.getUser(); return data.user ? {email:data.user.email,name:data.user.user_metadata?.full_name || data.user.email || ''} : null; },
-  async signIn(email:string){ const normalized=email.trim().toLowerCase(); if(normalized !== 'trendtribeluxurywears@gmail.com') throw new Error('not_authorized'); const {error}=await supabase.auth.signInWithOtp({email:normalized,options:{emailRedirectTo:window.location.origin}}); if(error) throw error; return {user:null,otpSent:true}; },
-  async signOut(){ await supabase.auth.signOut(); },
+ async getUser():Promise<User|null>{ const user=await supabase.auth.getUser(); return user ? {email:user.email,name:user.user_metadata?.full_name || user.email || ''} : null; },
+ async signIn(email:string){ const normalized=email.trim().toLowerCase(); if(normalized!==ADMIN_EMAIL) throw new Error('not_authorized'); const response=await fetch(SUPABASE_URL+'/auth/v1/otp',{method:'POST',headers:headers(),body:JSON.stringify({email:normalized,create_user:true,gotrue_meta_security:{}})}); if(!response.ok) throw new Error(await response.text()); return {user:null,otpSent:true}; },
+ async signOut(){ const s=session(); if(s?.access_token){ await fetch(SUPABASE_URL+'/auth/v1/logout',{method:'POST',headers:headers(true)}).catch(()=>undefined); } saveSession(null); }
 };
