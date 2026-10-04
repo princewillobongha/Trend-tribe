@@ -23,25 +23,40 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "ClothingStore",
-        "name": "Trend Tribe",
-        "description": "Trend Tribe is a Calabar-based fashion brand offering luxury wears and fancy clothing for men, women and unisex styles.",
-        "url": "https://trend-tribe.vercel.app/",
-        "telephone": "+2349017751552",
-        "email": "trendtribeluxurywears@gmail.com",
-        "address": {
-          "@type": "PostalAddress",
-          "addressLocality": "Calabar",
-          "addressRegion": "Cross River State",
-          "addressCountry": "NG"
-        },
-        "areaServed": {
-          "@type": "Country",
-          "name": "Nigeria"
-        },
-        "sameAs": [
-          "https://wa.me/2349017751552",
-          "https://www.facebook.com/profile.php?id=100069329571341"
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://trend-tribe.vercel.app/#website",
+            "url": "https://trend-tribe.vercel.app/",
+            "name": "Trend Tribe Collections",
+            "alternateName": ["Trend Tribe", "Trend Tribe Store"],
+            "publisher": { "@id": "https://trend-tribe.vercel.app/#organization" }
+          },
+          {
+            "@type": "ClothingStore",
+            "@id": "https://trend-tribe.vercel.app/#organization",
+            "name": "Trend Tribe Collections",
+            "alternateName": ["Trend Tribe", "Trend Tribe Store"],
+            "description": "Trend Tribe is a Calabar-based fashion brand offering luxury wears and fancy clothing for men, women and unisex styles.",
+            "url": "https://trend-tribe.vercel.app/",
+            "logo": "https://trend-tribe.vercel.app/trend-tribe-logo.svg",
+            "telephone": "+2349017751552",
+            "email": "trendtribeluxurywears@gmail.com",
+            "address": {
+              "@type": "PostalAddress",
+              "addressLocality": "Calabar",
+              "addressRegion": "Cross River State",
+              "addressCountry": "NG"
+            },
+            "areaServed": {
+              "@type": "Country",
+              "name": "Nigeria"
+            },
+            "sameAs": [
+              "https://wa.me/2349017751552",
+              "https://www.facebook.com/profile.php?id=100069329571341"
+            ]
+          }
         ]
       }
     </script>
