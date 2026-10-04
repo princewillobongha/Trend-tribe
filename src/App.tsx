@@ -267,7 +267,7 @@ function App() {
           className="brand"
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         >
-          <span className="brand-mark">TT</span>
+          <img className="brand-logo" src="/trend-tribe-logo.jpg" alt="Trend Tribe Collections" />
           <span>
             <strong>TREND TRIBE</strong>
             <small>LUXURY WEARS</small>
@@ -522,7 +522,7 @@ function App() {
       </main>
       <footer>
         <div>
-          <span className="footer-logo">TT</span>
+          <img className="footer-brand-logo" src="/trend-tribe-logo.jpg" alt="Trend Tribe Collections" />
           <strong>TREND TRIBE</strong>
           <p>
             Luxury wears. Fancy clothing.
