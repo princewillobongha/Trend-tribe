@@ -1029,3 +1029,16 @@ footer h4 {
 .preview-gallery{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}.preview-gallery .preview{width:100%;height:130px;margin:0}.admin-form label small{display:block;font-size:8px;letter-spacing:0;color:#777;margin-top:7px}.product-card{cursor:pointer}.product-detail-card{position:relative;width:min(980px,calc(100% - 28px));max-height:92vh;overflow:auto;margin:4vh auto;background:#f5f2ec;padding:28px;box-shadow:0 30px 90px #0008;display:grid;grid-template-columns:1.15fr .85fr;gap:30px}.product-detail-gallery{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;align-content:start}.product-detail-gallery img{width:100%;aspect-ratio:4/5;object-fit:cover;background:#ddd}.product-detail-copy{padding:35px 20px}.product-detail-copy h2{font:400 45px Georgia,serif;line-height:1.05;margin:0 0 14px}.detail-price{font:400 24px Georgia,serif;display:block;margin-bottom:25px}.product-detail-copy>p:not(.eyebrow):not(.sizes){font-size:12px;line-height:1.8;color:#666;margin-bottom:25px}.detail-actions{margin-top:25px}@media(max-width:700px){.product-detail-card{grid-template-columns:1fr;padding:18px}.product-detail-copy{padding:10px 4px 25px}.product-detail-copy h2{font-size:34px}.product-detail-gallery{grid-template-columns:repeat(2,1fr)}.preview-gallery{grid-template-columns:repeat(3,1fr)}}
 
 .brand-logo{width:58px;height:58px;object-fit:cover;display:block;background:#111;border-radius:2px;flex:none}.footer-brand-logo{width:82px;height:82px;object-fit:cover;display:block;background:#111;margin-bottom:8px}.brand{display:flex;align-items:center;gap:11px}.brand>span{display:flex;flex-direction:column}.brand strong{font-size:12px;letter-spacing:.22em}.brand small{font-size:7px;letter-spacing:.16em;margin-top:3px;opacity:.5}@media(max-width:600px){.brand-logo{width:48px;height:48px}.brand strong{font-size:10px}.brand small{font-size:6px}}
+
+/* Customer authentication */
+.customer-login-card { max-width: 460px; }
+.social-login-grid { display: grid; gap: 10px; margin: 18px 0 4px; }
+.social-login-btn { width: 100%; min-height: 50px; border: 1px solid rgba(17,17,17,.14); background: #fff; color: #111; border-radius: 4px; display: flex; align-items: center; justify-content: center; gap: 10px; font: inherit; font-weight: 600; cursor: pointer; transition: transform .18s ease, background .18s ease, border-color .18s ease; }
+.social-login-btn:hover:not(:disabled) { transform: translateY(-1px); border-color: rgba(17,17,17,.32); background: #f7f7f5; }
+.social-login-btn:disabled { opacity: .55; cursor: wait; }
+.provider-mark { width: 22px; text-align: center; font-weight: 700; font-size: 17px; }
+.login-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: #777; font-size: 12px; text-transform: uppercase; letter-spacing: .14em; }
+.login-divider::before, .login-divider::after { content: ""; height: 1px; background: rgba(17,17,17,.12); flex: 1; }
+.auth-message { margin: 12px 0 0; font-size: 13px; line-height: 1.5; color: #555; }
+.guest-checkout-note { margin: 14px 0 0; text-align: center; font-size: 12px; color: #777; }
+@media (max-width: 560px) { .customer-login-card { width: calc(100vw - 28px); padding: 24px 18px; } }
