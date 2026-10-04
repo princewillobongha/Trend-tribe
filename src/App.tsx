@@ -66,6 +66,10 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
   const [showLogin, setShowLogin] = useState(false);
+  const [customerUser, setCustomerUser] = useState<{ email?: string; name?: string } | null>(null);
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerBusy, setCustomerBusy] = useState(false);
+  const [customerMessage, setCustomerMessage] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [loginEmail, setLoginEmail] = useState('trendtribeluxurywears@gmail.com');
   const [loginBusy, setLoginBusy] = useState(false);
@@ -90,7 +94,10 @@ function App() {
         localStorage.removeItem('trend-tribe-cart');
       }
     }
-    auth.getUser().then(user => { if (user?.email?.trim().toLowerCase() === ADMIN_EMAIL) setAdminUser(user); }).catch(() => undefined);
+    auth.getUser().then(user => {
+      if (user?.email?.trim().toLowerCase() === ADMIN_EMAIL) setAdminUser(user);
+      else if (user) setCustomerUser(user);
+    }).catch(() => undefined);
 
   }, []);
   useEffect(() => {
@@ -224,7 +231,25 @@ function App() {
     } catch { setNotice('We could not submit your order. Please try again.'); }
     finally { setCheckoutBusy(false); }
   };
-  const signInAdmin = async () => { setShowLogin(true); };
+  const signInAdmin = async () => { setShowLogin(true); setCustomerMessage(''); };
+  const openCustomerAuth = () => { setShowLogin(true); setCustomerMessage(''); };
+  const sendCustomerEmailLink = async () => {
+    const email = customerEmail.trim().toLowerCase();
+    if (!email || !email.includes('@')) { setCustomerMessage('Please enter a valid email address.'); return; }
+    setCustomerBusy(true); setCustomerMessage('');
+    try {
+      await auth.signInWithEmail(email);
+      setCustomerMessage('Check your email for your secure Trend Tribe sign-in link.');
+    } catch (error: any) {
+      setCustomerMessage(error?.message || 'We could not send the sign-in link. Please try again.');
+    } finally { setCustomerBusy(false); }
+  };
+  const signInCustomerProvider = async (provider: 'google' | 'apple' | 'twitter') => {
+    setCustomerBusy(true); setCustomerMessage('');
+    try { await auth.signInWithProvider(provider); }
+    catch (error: any) { setCustomerMessage(error?.message || 'This sign-in option is not available yet. Please use email.'); setCustomerBusy(false); }
+  };
+  const signOutCustomer = async () => { await auth.signOut(); setCustomerUser(null); setShowLogin(false); setCustomerMessage(''); };
   const submitAdminLogin = async () => {
     setLoginBusy(true); setNotice('');
     try { await auth.signIn(loginEmail); setShowLogin(false); setNotice('Check the admin email inbox and tap the secure sign-in link.'); setTimeout(() => setNotice(''), 7000); }
@@ -305,7 +330,7 @@ function App() {
           </button>
           <button
             aria-label="Account"
-            onClick={adminUser ? () => setShowAdmin(true) : signInAdmin}
+            onClick={customerUser ? openCustomerAuth : openCustomerAuth}
           >
             <UserRound size={19} />
           </button>
@@ -583,15 +608,34 @@ function App() {
           </div>
         </div>
       )}
-      {showLogin && !adminUser && (
+      {showLogin && (
         <div className="overlay" onMouseDown={() => setShowLogin(false)}>
-          <div className="login-card" onMouseDown={e => e.stopPropagation()}>
+          <div className="login-card customer-login-card" onMouseDown={e => e.stopPropagation()}>
             <button className="login-close" onClick={() => setShowLogin(false)}><X /></button>
-            <p className="eyebrow">TREND TRIBE ADMIN</p>
-            <h2>Welcome back.</h2>
-            <p>Enter the authorized admin email. We'll send a secure sign-in link to your inbox.</p>
-            <label>ADMIN EMAIL<input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} autoComplete="email" /></label>
-            <button className="primary-btn full" disabled={loginBusy} onClick={submitAdminLogin}>{loginBusy ? 'SENDING…' : 'SEND SECURE SIGN-IN LINK'} <ArrowRight size={17} /></button>
+            {customerUser ? (
+              <>
+                <p className="eyebrow">YOUR TREND TRIBE ACCOUNT</p>
+                <h2>Welcome back.</h2>
+                <p>Signed in as <strong>{customerUser.email}</strong>.</p>
+                <button className="primary-btn full" onClick={signOutCustomer}>SIGN OUT <LogOut size={17} /></button>
+              </>
+            ) : (
+              <>
+                <p className="eyebrow">TREND TRIBE COLLECTIONS</p>
+                <h2>Welcome back.</h2>
+                <p>Sign in to save your account and make future shopping easier. You can still shop and order as a guest.</p>
+                <div className="social-login-grid">
+                  <button type="button" className="social-login-btn" disabled={customerBusy} onClick={() => signInCustomerProvider('google')}><span className="provider-mark">G</span> Continue with Google</button>
+                  <button type="button" className="social-login-btn" disabled={customerBusy} onClick={() => signInCustomerProvider('apple')}><span className="provider-mark"></span> Continue with Apple</button>
+                  <button type="button" className="social-login-btn" disabled={customerBusy} onClick={() => signInCustomerProvider('twitter')}><span className="provider-mark">𝕏</span> Continue with X</button>
+                </div>
+                <div className="login-divider"><span>or</span></div>
+                <label>EMAIL ADDRESS<input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} autoComplete="email" placeholder="you@example.com" /></label>
+                <button className="primary-btn full" disabled={customerBusy} onClick={sendCustomerEmailLink}>{customerBusy ? 'PLEASE WAIT…' : 'CONTINUE WITH EMAIL'} <ArrowRight size={17} /></button>
+                {customerMessage && <p className="auth-message">{customerMessage}</p>}
+                <p className="guest-checkout-note">No account required to shop or place an order.</p>
+              </>
+            )}
           </div>
         </div>
       )}
