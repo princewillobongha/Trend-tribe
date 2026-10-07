@@ -107,7 +107,7 @@ function App() {
   }, [products]);
 
   useEffect(() => {
-    const title = selectedProduct ? `${selectedProduct.name} | Trend Tribe Luxury Wears` : 'Trend Tribe | Luxury Wears & Fancy Clothing in Calabar';
+    const title = selectedProduct ? `${selectedProduct.name} | Trend Tribe Collections` : 'Trend Tribe Collections | Luxury Wears & Fancy Clothing in Calabar';
     document.title = title;
     const description = selectedProduct ? `${selectedProduct.name} — ${selectedProduct.description || 'Premium and fancy clothing from Trend Tribe.'} Shop in Nigeria with Trend Tribe.` : 'Trend Tribe is a Calabar-based luxury fashion store offering premium and fancy clothing for men, women and unisex styles across Nigeria. Browse the collection and order easily.';
     let meta = document.querySelector('meta[name="description"]');
