@@ -1042,8 +1042,7 @@ footer h4 {
 .menu-list button{display:flex;align-items:center;justify-content:space-between;padding:18px 0;border-bottom:1px solid #ddd7cd;text-align:left;font-size:10px;letter-spacing:.16em}
 .menu-list button:hover{padding-left:6px}
 .menu-note{margin-top:auto;padding-top:24px;border-top:1px solid #d3cec4;display:flex;flex-direction:column;gap:7px;font-size:8px;letter-spacing:.14em;color:#777}
-.manifesto-image{position:relative;overflow:hidden;background:#111}
-.manifesto-image:before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(10,10,10,.08),rgba(10,10,10,.48))}
-.manifesto-image:after{content:'TT';position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.78);font:400 150px Georgia,serif;letter-spacing:-.12em;text-shadow:0 15px 40px #0008}
-.manifesto-image{background-image:url('/tt-fashion-collage.svg');background-size:cover;background-position:center}
+.manifesto-image{position:relative;overflow:hidden;background:#171717}
 @media(max-width:600px){.menu-drawer{width:92%;padding:28px 22px}.menu-head h2{font-size:35px}.manifesto-image{min-height:350px}.manifesto-image:after{font-size:105px}}
+
+.login-links{display:flex;flex-direction:column;gap:10px;margin-top:16px}.login-links button{text-align:left;font-size:9px;letter-spacing:.06em;color:#666;text-decoration:underline;text-underline-offset:3px}.login-links button:hover{color:#171717}
