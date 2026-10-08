@@ -58,6 +58,7 @@ function App() {
   const [category, setCategory] = useState('All');
   const [query, setQuery] = useState('');
   const [showCart, setShowCart] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [adminUser, setAdminUser] = useState<{
     email?: string;
@@ -228,7 +229,13 @@ function App() {
   const submitAdminLogin = async () => {
     setLoginBusy(true); setNotice('');
     try { await auth.signIn(loginEmail); setShowLogin(false); setNotice('Check the admin email inbox and tap the secure sign-in link.'); setTimeout(() => setNotice(''), 7000); }
-    catch (error: any) { setNotice(error?.message === 'not_authorized' ? 'This email is not authorized as the Trend Tribe admin.' : 'Could not send the sign-in link. Please try again.'); }
+    catch (error: any) {
+      const raw = String(error?.message || '');
+      let message = 'Could not send the sign-in link. Please try again.';
+      if (raw === 'not_authorized') message = 'This email is not authorized as the Trend Tribe admin.';
+      else if (raw.includes('over_email_send_rate_limit') || raw.includes('429')) message = 'Email sending is temporarily rate-limited by Supabase. Please wait for the email limit to reset, then try again.';
+      setNotice(message);
+    }
     finally { setLoginBusy(false); }
   };
   const signOut = async () => {
@@ -255,11 +262,9 @@ function App() {
       <nav className="nav">
         <button
           className="mobile-menu"
-          onClick={() =>
-            document
-              .getElementById('collections')
-              ?.scrollIntoView({ behavior: 'smooth' })
-          }
+          onClick={() => setShowMenu(true)}
+          aria-label="Open menu"
+          aria-expanded={showMenu}
         >
           <Menu size={20} />
         </button>
@@ -557,6 +562,36 @@ function App() {
         </div>
       </footer>
       {notice && <div className="toast">{notice}</div>}
+      {showMenu && (
+        <div className="overlay menu-overlay" onMouseDown={() => setShowMenu(false)}>
+          <aside className="menu-drawer" onMouseDown={e => e.stopPropagation()}>
+            <div className="menu-head">
+              <div>
+                <p className="eyebrow">TREND TRIBE COLLECTIONS</p>
+                <h2>Explore.</h2>
+              </div>
+              <button aria-label="Close menu" onClick={() => setShowMenu(false)}><X /></button>
+            </div>
+            <nav className="menu-list">
+              {[
+                ['SHOP THE COLLECTION', () => { setCategory('All'); setShowMenu(false); document.getElementById('collections')?.scrollIntoView({behavior:'smooth'}); }],
+                ['NEW IN', () => { setCategory('New In'); setShowMenu(false); document.getElementById('collections')?.scrollIntoView({behavior:'smooth'}); }],
+                ['MEN', () => { setCategory('Men'); setShowMenu(false); document.getElementById('collections')?.scrollIntoView({behavior:'smooth'}); }],
+                ['WOMEN', () => { setCategory('Women'); setShowMenu(false); document.getElementById('collections')?.scrollIntoView({behavior:'smooth'}); }],
+                ['UNISEX', () => { setCategory('Unisex'); setShowMenu(false); document.getElementById('collections')?.scrollIntoView({behavior:'smooth'}); }],
+                ['ABOUT TREND TRIBE', () => { setShowMenu(false); document.getElementById('about')?.scrollIntoView({behavior:'smooth'}); }],
+                ['CONTACT TREND TRIBE', () => { setShowMenu(false); window.open('https://wa.me/2349017751552','_blank'); }],
+              ].map(([label, action]) => (
+                <button key={String(label)} onClick={action as any}>{label}<ArrowRight size={17}/></button>
+              ))}
+            </nav>
+            <div className="menu-note">
+              <span>CALABAR • CROSS RIVER STATE</span>
+              <span>LUXURY WEARS • FANCY CLOTHING</span>
+            </div>
+          </aside>
+        </div>
+      )}
       {selectedProduct && (
         <div className="overlay" onMouseDown={closeProduct}>
           <div className="product-detail-card" onMouseDown={e => e.stopPropagation()}>
