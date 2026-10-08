@@ -69,7 +69,9 @@ function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [loginEmail, setLoginEmail] = useState('trendtribeluxurywears@gmail.com');
+  const [loginPassword, setLoginPassword] = useState('');
   const [loginBusy, setLoginBusy] = useState(false);
+  const [loginMode, setLoginMode] = useState<'password' | 'link'>('password');
 
   const loadProducts = async () => {
     try {
@@ -228,15 +230,42 @@ function App() {
   const signInAdmin = async () => { setShowLogin(true); };
   const submitAdminLogin = async () => {
     setLoginBusy(true); setNotice('');
-    try { await auth.signIn(loginEmail); setShowLogin(false); setNotice('Check the admin email inbox and tap the secure sign-in link.'); setTimeout(() => setNotice(''), 7000); }
-    catch (error: any) {
+    try {
+      if (loginMode === 'password') {
+        const user = await auth.signInWithPassword(loginEmail, loginPassword);
+        setAdminUser(user);
+        setLoginPassword('');
+        setShowLogin(false);
+        setShowAdmin(true);
+      } else {
+        await auth.signIn(loginEmail);
+        setShowLogin(false);
+        setNotice('Check the admin email inbox and tap the secure sign-in link.');
+        setTimeout(() => setNotice(''), 7000);
+      }
+    } catch (error: any) {
       const raw = String(error?.message || '');
-      let message = 'Could not send the sign-in link. Please try again.';
+      let message = 'Could not sign you in. Please check your details and try again.';
       if (raw === 'not_authorized') message = 'This email is not authorized as the Trend Tribe admin.';
-      else if (raw.includes('over_email_send_rate_limit') || raw.includes('429')) message = 'Email sending is temporarily rate-limited by Supabase. Please wait for the email limit to reset, then try again.';
+      else if (raw.includes('Invalid login credentials') || raw.includes('invalid_credentials')) message = 'That password is incorrect. You can use the secure email link below if you need to set or reset your password.';
+      else if (raw.includes('over_email_send_rate_limit') || raw.includes('429')) message = 'Email sending is temporarily rate-limited by Supabase. Try again later, or use your existing password.';
       setNotice(message);
     }
     finally { setLoginBusy(false); }
+  };
+
+  const sendPasswordReset = async () => {
+    setLoginBusy(true); setNotice('');
+    try {
+      await auth.requestPasswordReset(loginEmail);
+      setNotice('Password reset instructions have been sent if this admin email is registered.');
+      setTimeout(() => setNotice(''), 7000);
+    } catch (error: any) {
+      const raw = String(error?.message || '');
+      setNotice(raw.includes('over_email_send_rate_limit') || raw.includes('429')
+        ? 'Password-reset email is temporarily rate-limited by Supabase. Please use your existing password or try again later.'
+        : 'Could not send password-reset instructions. Please try again.');
+    } finally { setLoginBusy(false); }
   };
   const signOut = async () => {
     await auth.signOut();
@@ -486,9 +515,7 @@ function App() {
           )}
         </section>
         <section className="manifesto" id="about">
-          <div className="manifesto-image">
-            <span>TT</span>
-          </div>
+          <div className="manifesto-image" aria-label="Trend Tribe fashion image"></div>
           <div className="manifesto-copy">
             <p className="eyebrow">THE TREND TRIBE WAY</p>
             <h2>
@@ -624,9 +651,24 @@ function App() {
             <button className="login-close" onClick={() => setShowLogin(false)}><X /></button>
             <p className="eyebrow">TREND TRIBE ADMIN</p>
             <h2>Welcome back.</h2>
-            <p>Enter the authorized admin email. We'll send a secure sign-in link to your inbox.</p>
+            <p>Sign in with your admin password. Your existing secure email-link sign-in remains available, so no existing access is lost.</p>
             <label>ADMIN EMAIL<input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} autoComplete="email" /></label>
-            <button className="primary-btn full" disabled={loginBusy} onClick={submitAdminLogin}>{loginBusy ? 'SENDING…' : 'SEND SECURE SIGN-IN LINK'} <ArrowRight size={17} /></button>
+            {loginMode === 'password' && (
+              <label>ADMIN PASSWORD<input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} autoComplete="current-password" placeholder="Enter your password" /></label>
+            )}
+            <button className="primary-btn full" disabled={loginBusy || (loginMode === 'password' && !loginPassword)} onClick={submitAdminLogin}>
+              {loginBusy ? 'SIGNING IN…' : loginMode === 'password' ? 'SIGN IN WITH PASSWORD' : 'SEND SECURE SIGN-IN LINK'} <ArrowRight size={17} />
+            </button>
+            {loginMode === 'password' ? (
+              <div className="login-links">
+                <button type="button" onClick={sendPasswordReset} disabled={loginBusy}>Forgot or need to set your password?</button>
+                <button type="button" onClick={() => setLoginMode('link')}>Use secure email sign-in instead</button>
+              </div>
+            ) : (
+              <div className="login-links">
+                <button type="button" onClick={() => setLoginMode('password')}>Use password instead</button>
+              </div>
+            )}
           </div>
         </div>
       )}
